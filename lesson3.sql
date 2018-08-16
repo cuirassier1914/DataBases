@@ -17,7 +17,7 @@ LEFT JOIN geodata._countries ON geodata._cities.country_id=geodata._countries.id
 WHERE geodata._regions.title='Московская область'
 ORDER BY _cities.title;
 
--- DB
+-- DB employees
 
 --средняя зарплата по отделам
 
