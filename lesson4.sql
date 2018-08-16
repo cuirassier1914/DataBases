@@ -141,4 +141,12 @@ SELECT SUM(salary) FROM all_amployees WHERE dept_no = 'd001'
 );
 
 SELECT * FROM employees.empl_total;
+ 
+ 
+ 
+ --Создать функцию, которая найдет менеджера по имени и фамилии
+ 
+ CREATE FUNCTION find_manager (name CHAR(50))
+ --RETURNS 
+ RETURN SELECT 
 
