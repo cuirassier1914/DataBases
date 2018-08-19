@@ -1,17 +1,20 @@
+-- 1) Создать VIEW на предыдущую ДЗ
+
+
 CREATE VIEW city_data
   AS SELECT _cities.id, _cities.title as city, _regions.title as region, _countries.title as country
   FROM geodata._cities
   LEFT JOIN geodata._regions ON geodata._cities.region_id=geodata._regions.id
   LEFT JOIN geodata._countries ON geodata._cities.country_id=geodata._countries.id
-  ORDER BY _cities.id;
-  
+  GROUP BY _cities.id;
+
 CREATE VIEW cities_MD
  AS SELECT _cities.id, _cities.title as city, _regions.title as region, _countries.title as country
   FROM geodata._cities
   LEFT JOIN geodata._regions ON geodata._cities.region_id=geodata._regions.id
   LEFT JOIN geodata._countries ON geodata._cities.country_id=geodata._countries.id
   WHERE geodata._regions.title='Московская область'
-  ORDER BY _cities.title;
+  GROUP BY _cities.title;
 
 SELECT * FROM city_data;
 SELECT * FROM cities_MD;
@@ -19,134 +22,156 @@ SELECT * FROM cities_MD;
 
 
 -- DB employees
--- объединение работников и начальников
-
-CREATE VIEW all_employees
-  AS SELECT dept_emp.emp_no, dept_emp.dept_no, salaries.salary
-  FROM employees.dept_emp
-  LEFT JOIN employees.salaries ON employees.dept_emp.emp_no=employees.salaries.emp_no
-  UNION ALL
-  SELECT dept_manager.emp_no, dept_manager.dept_no, salaries.salary
-  FROM employees.dept_manager
-  LEFT JOIN employees.salaries ON employees.dept_manager.emp_no=employees.salaries.emp_no
-  --LIMIT 30 --
-  ;
-
 
 --средняя зарплата по отделам
+use employees;
+
+CREATE VIEW view_employees_salaries
+  AS SELECT dept_emp.emp_no, dept_emp.dept_no, salaries.salary
+      FROM employees.dept_emp
+      LEFT JOIN salaries ON dept_emp.emp_no=salaries.emp_no
+      WHERE dept_emp.to_date > now() && salaries.to_date > now()
+      GROUP BY dept_emp.emp_no;
+
+CREATE VIEW view_dept_avg_salaries
+  AS SELECT dept_no, avg(salary)
+   FROM view_employees_salaries
+   WHERE dept_no='d001'
+   UNION
+   SELECT dept_no, avg(salary)
+   FROM view_employees_salaries
+   WHERE dept_no='d002'
+   UNION
+   SELECT dept_no, avg(salary)
+   FROM view_employees_salaries
+   WHERE dept_no='d003'
+   UNION
+   SELECT dept_no, avg(salary)
+   FROM view_employees_salaries
+   WHERE dept_no='d004'
+   UNION
+   SELECT dept_no, avg(salary)
+   FROM view_employees_salaries
+   WHERE dept_no='d005'
+   UNION
+   SELECT dept_no, avg(salary)
+   FROM view_employees_salaries
+   WHERE dept_no='d006'
+   UNION
+   SELECT dept_no, avg(salary)
+   FROM view_employees_salaries
+   WHERE dept_no='d007'
+   UNION
+   SELECT dept_no, avg(salary)
+   FROM view_employees_salaries
+   WHERE dept_no='d008'UNION
+   SELECT dept_no, avg(salary)
+   FROM view_employees_salaries
+   WHERE dept_no='d009';
+
+SELECT * FROM view_dept_avg_salaries;
 
 
 
-DROP TABLE IF EXISTS employees.`avg1`;
-CREATE TABLE employees.`avg1` (
-dept_no CHAR(4),
-avg_salary INT(11)
-);
+-- максимальная зарплата сотрудника
 
-INSERT INTO employees.`avg1` (dept_no, avg_salary)
-VALUE (
-'d001',
-(SELECT avg(salary)
-FROM all_employees
-WHERE all_employees.dept_no='d001'));
- 
-INSERT INTO employees.`avg1` (dept_no, avg_salary)
-VALUE (
-'d002',
-(SELECT avg(salary)
-FROM all_employees
-WHERE all_employees.dept_no='d002'));
- 
-INSERT INTO employees.`avg1` (dept_no, avg_salary)
-VALUE (
-'d003',
-(SELECT avg(salary)
-FROM all_employees
-WHERE all_employees.dept_no='d003'));
- 
-INSERT INTO employees.`avg1` (dept_no, avg_salary)
-VALUE (
-'d004',
-(SELECT avg(salary)
-FROM all_employees
-WHERE all_employees.dept_no='d004'));
- 
-INSERT INTO employees.`avg1` (dept_no, avg_salary)
-VALUE (
-'d005',
-(SELECT avg(salary)
-FROM all_employees
-WHERE all_employees.dept_no='d005'));
- 
-INSERT INTO employees.`avg1` (dept_no, avg_salary)
-VALUE (
-'d006',
-(SELECT avg(salary)
-FROM all_employees
-WHERE all_employees.dept_no='d006'));
- 
-INSERT INTO employees.`avg1` (dept_no, avg_salary)
-VALUE (
-'d007',
-(SELECT avg(salary)
-FROM all_employees
-WHERE all_employees.dept_no='d007'));
- 
-INSERT INTO employees.`avg1` (dept_no, avg_salary)
-VALUE (
-'d008',
-(SELECT avg(salary)
-FROM all_employees
-WHERE all_employees.dept_no='d008'));
- 
-INSERT INTO employees.`avg1` (dept_no, avg_salary)
-VALUE (
-'d009',
-(SELECT avg(salary)
-FROM all_employees
-WHERE all_employees.dept_no='d009'));
+CREATE VIEW view_max_salary AS
+  SELECT emp_no, dept_no, max(salary) FROM view_employees_salaries;
 
-SELECT *, departments.dept_name
-FROM employees.avg1
-LEFT JOIN
-employees.departments ON employees.departments.dept_no=employees.avg1.dept_no;
-
-
--- максимальная зарплата сотрудника ("менеджеров" сюда тоже включил)
-
-SELECT max(salary) FROM all_amployees;
+SELECT * FROM view_max_salary;
 
 -- удалить сотрудника с наибольшей зарплатой
 
-DELETE FROM all_employees ORDER BY (salary) DESC LIMIT 1;
+DELETE FROM employees
+WHERE emp_no=(SELECT emp_no FROM view_max_salary);
+DELETE FROM salaries
+WHERE emp_no=(SELECT emp_no FROM view_max_salary);
+DELETE FROM dept_emp
+WHERE emp_no=(SELECT emp_no FROM view_max_salary);
 
 -- количество сотрудников во всех отделах
 
-SELECT COUNT(emp_no) FROM all_amployees;
+SELECT COUNT(emp_no) FROM view_employees_salaries;
 
 -- найти количество сотрудников в отделах и посмотреть, сколько всего денег получает отдел.
 
-DROP TABLE IF EXISTS employees.empl_total;
-CREATE TABLE employees.empl_total (
-dept_no CHAR(4),
-emp_count INT (11),
-total_salary INT(11)
-);
+CREATE VIEW view_empl_count_total_salary AS
+ SELECT dept_no, COUNT(emp_no), SUM(salary)
+ FROM view_employees_salaries
+ WHERE dept_no='d001'
+ UNION
+ SELECT dept_no, COUNT(emp_no), SUM(salary)
+ FROM view_employees_salaries
+ WHERE dept_no='d002'
+ UNION
+ SELECT dept_no, COUNT(emp_no), SUM(salary)
+ FROM view_employees_salaries
+ WHERE dept_no='d003'
+ UNION
+ SELECT dept_no, COUNT(emp_no), SUM(salary)
+ FROM view_employees_salaries
+ WHERE dept_no='d004'
+ UNION
+ SELECT dept_no, COUNT(emp_no), SUM(salary)
+ FROM view_employees_salaries
+ WHERE dept_no='d005'
+ UNION
+ SELECT dept_no, COUNT(emp_no), SUM(salary)
+ FROM view_employees_salaries
+ WHERE dept_no='d006'
+ UNION
+ SELECT dept_no, COUNT(emp_no), SUM(salary)
+ FROM view_employees_salaries
+ WHERE dept_no='d007'
+ UNION
+ SELECT dept_no, COUNT(emp_no), SUM(salary)
+ FROM view_employees_salaries
+ WHERE dept_no='d008'
+ UNION
+ SELECT dept_no, COUNT(emp_no), SUM(salary)
+ FROM view_employees_salaries
+ WHERE dept_no='d009';
 
-INSERT INTO employees.empl_total (dept_no, emp_count, total_salary)
-VALUE (
-'d001',
-SELECT COUNT(emp_no) FROM all_amployees WHERE dept_no = 'd001',
-SELECT SUM(salary) FROM all_amployees WHERE dept_no = 'd001'
-);
+ SELECT * FROM view_empl_count_total_salary;
 
-SELECT * FROM employees.empl_total;
- 
- 
- 
- --Создать функцию, которая найдет менеджера по имени и фамилии
- 
- CREATE FUNCTION find_manager (name CHAR(50))
- --RETURNS 
- RETURN SELECT 
 
+
+
+--2) Создать функцию, которая найдет менеджера по имени и фамилии
+
+delimiter //
+  CREATE FUNCTION func_find_manager (full_name VARCHAR(30))
+    RETURNS INT(11)
+    BEGIN
+     DECLARE result INT(11);
+     SET result=(SELECT emp_no FROM employees WHERE CONCAT(first_name, ' ', last_name)=full_name);
+     RETURN result;
+    END//
+delimiter ;
+
+SELECT func_find_manager('Bezalel Simmel');
+
+
+
+--3) Создать триггер, который при добавлении нового сотрудника будет выплачивать ему вступительный бонус,
+-- занося запись в таблицу salary
+
+delimiter //
+  CREATE TRIGGER trig_new_emp
+    AFTER INSERT ON employees
+    FOR EACH ROW
+    BEGIN
+      SET @bonus=50000;
+      UPDATE salaries
+        SET emp_no=(NEW.emp_no),
+            salary=@bonus,
+            from_date=date(now()),
+            to_date=add_months(now()+1);
+    END//
+delimiter ;
+
+
+INSERT INTO employees
+(emp_no, birth_date, first_name, last_name, gender, hire_date)
+VALUE
+(10001, 1987-03-09, 'Serge', 'Pachkov', 'M', date(now()));
