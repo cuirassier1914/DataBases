@@ -162,16 +162,8 @@ delimiter //
     FOR EACH ROW
     BEGIN
       SET @bonus=50000;
-      UPDATE salaries
-        SET emp_no=(NEW.emp_no),
-            salary=@bonus,
-            from_date=date(now()),
-            to_date=add_months(now()+1);
+      INSERT INTO salaries (emp_no, salary, from_date, to_date)
+              VALUE
+                ((NEW.emp_no), @bonus, date(now()), date_add(date(now()), INTERVAL 1 MONTH));
     END//
 delimiter ;
-
-
-INSERT INTO employees
-(emp_no, birth_date, first_name, last_name, gender, hire_date)
-VALUE
-(10001, 1987-03-09, 'Serge', 'Pachkov', 'M', date(now()));
