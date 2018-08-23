@@ -2,7 +2,7 @@
 
 use employees;
 
-START TRANSACTION ;
+START TRANSACTION;
 BEGIN;
 
 SAVEPOINT stage00;
