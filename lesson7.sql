@@ -135,7 +135,7 @@ CHANGE COLUMN `name` `text` VARCHAR(256) NULL DEFAULT NULL , RENAME TO  `users_l
 
 
 ---- ---------------исключение повторных лайков - удаление лайка-----------------
---- не сработало в MariaDB---
+--- не сработало в MariaDB, потому что есть еще один одновременный триггер---
 
 use users_likes;
 
@@ -174,6 +174,62 @@ DELETE FROM likes
       WHEN @a=TRUE
       THEN TRUE
       ELSE FALSE
+      END);
+
+    END//
+
+delimiter ;
+	       
+	      
+------ видимо, нужно сделать один триггер --------
+---- но этот протестировать уже не успел, пишу "абстрактно"------
+	       
+use users_likes;
+	       
+DROP TRIGGER IF EXISTS `trig_if_mutual`;
+DROP TRIGGER IF EXISTS `trig_validator`;
+DROP TRIGGER IF EXISTS `trig_add_like`;
+
+	       
+delimiter //
+
+CREATE TRIGGER trig_add_like
+    BEFORE INSERT ON likes
+    FOR EACH ROW
+    BEGIN
+	       
+	SET @a=(CASE
+	WHEN EXISTS(SELECT * FROM likes WHERE
+      from_id=NEW.from_id
+      and
+      to_id=NEW.to_id
+      and
+      `type`=NEW.`type`
+      and
+      object_id=NEW.object_id) THEN TRUE
+      ELSE FALSE
+      END);
+
+	DELETE FROM likes
+    	WHERE from_id=NEW.from_id
+      and
+      to_id=NEW.to_id
+      and
+      `type`=NEW.`type`
+      and
+      object_id=NEW.object_id
+      and
+      TRUE=(CASE
+      WHEN @a=TRUE
+      THEN TRUE
+      ELSE FALSE
+      END);
+	       
+      SET NEW.mutual=(
+      CASE
+      WHEN (SELECT EXISTS (SELECT to_id FROM likes WHERE to_id=NEW.from_id and from_id=NEW.to_id))
+      THEN '1'
+      ELSE '0'
       END);
 
     END//
