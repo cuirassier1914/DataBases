@@ -235,3 +235,19 @@ CREATE TRIGGER trig_add_like
     END//
 
 delimiter ;
+
+	    -------считать число полученных сущностью лайков и выводить список пользователей, поставивших лайки-----
+	    -----это тоже протестировать не успел---
+use users_likes;
+SELECT COUNT(id) FROM likes WHERE object_id= X;
+	    
+DROP VIEW IF EXISTS `objects_users` AS
+SELECT likes.id, likes.from_id, likes.object_id, users.name FROM likes
+LEFT JOIN users ON likes.from_id=users.id
+GROUP BY likes.id;
+	
+---этот метод, честно говоря, подсмотрел---
+	    
+Declare @val Varchar(MAX);
+Set @val = COALESCE(@val + ', ' + users.name, users.name) From `objects_users`;
+Select @val;
