@@ -136,11 +136,11 @@ CHANGE COLUMN `name` `text` VARCHAR(256) NULL DEFAULT NULL , RENAME TO  `users_l
 
 use users_likes;
 
-DROP TRIGGER IF EXISTS trig_validator;
+DROP TRIGGER IF EXISTS trig_likes_validator;
 
 delimiter //
 
-CREATE TRIGGER trig_validator
+CREATE TRIGGER trig_likes_validator
     BEFORE INSERT ON likes
     FOR EACH ROW
     BEGIN
@@ -248,3 +248,49 @@ GROUP BY likes.id;
 Declare @val Varchar(MAX);
 Set @val = COALESCE(@val + ', ' + users.name, users.name) From `objects_users`;
 Select @val;
+	    
+	    
+	   -----------------------test
+	    use users_likes;
+
+DROP TRIGGER IF EXISTS trig_likes_validator;
+
+delimiter //
+
+CREATE TRIGGER trig_likes_validator
+    BEFORE INSERT ON likes
+    FOR EACH ROW
+    BEGIN
+
+    SET @a=(CASE
+		WHEN EXISTS(SELECT * FROM likes WHERE
+      from_id=NEW.from_id
+      and
+      to_id=NEW.to_id
+      and
+      `type`=NEW.`type`
+      and
+      object_id=NEW.object_id) THEN TRUE
+      ELSE FALSE
+      END);
+
+	UPDATE likes
+    SET
+    id=null, from_id=null, to_id=null, type=null, object_id=null
+    WHERE from_id=NEW.from_id
+      and
+      to_id=NEW.to_id
+      and
+      `type`=NEW.`type`
+      and
+      object_id=NEW.object_id
+      and
+      TRUE=(CASE
+      WHEN @a=TRUE
+      THEN TRUE
+      ELSE FALSE
+      END);
+
+    END//
+
+delimiter ;
