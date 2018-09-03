@@ -37,47 +37,44 @@ CREATE TABLE IF NOT EXISTS `users_likes`.`likes` (
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
-ALTER TABLE `users_likes`.`likes`
-ADD COLUMN `mutual` ENUM('0', '1') NOT NULL DEFAULT '0' AFTER `to_id`;
 
 --1
 
 use users_likes;
-DROP VIEW IF EXISTS sent;
 
+DROP VIEW IF EXISTS sent;
 CREATE VIEW `sent` AS
 SELECT users.id, users.name, count(likes.from_id) as `likes sent`
 FROM users
 LEFT JOIN likes ON users.id=likes.from_id
 GROUP BY  users.id;
 
-SELECT users.id, users.name, count(likes.to_id) as `likes received`, sent.`likes sent`, count(likes.mutual) as `mutual`
+DROP VIEW IF EXISTS `received`;
+CREATE VIEW `received` AS
+SELECT users.id, users.name, count(likes.to_id) as `likes received`
 FROM users
-LEFT JOIN likes  ON users.id=likes.to_id
-LEFT JOIN sent ON users.id=sent.id
+LEFT JOIN likes ON users.id=likes.to_id
 GROUP BY  users.id;
 
+DROP VIEW IF EXISTS mutual;
+CREATE VIEW mutual AS 
+#выбрали только взаимные---
+SELECT B.from_id, B.to_id FROM likes A
+JOIN likes B ON
+B.to_id=A.from_id
+and
+B.from_id=A.to_id;
 
------------- делаем триггер для взаимных лайков--------------
+SELECT users.id, users.name, 
+received.`likes received`, 
+sent.`likes sent`, 
+count(mutual.from_id) as `mutual`
+FROM users
+LEFT JOIN received  ON users.id=received.id
+LEFT JOIN sent ON users.id=sent.id
+LEFT JOIN mutual ON users.id=mutual.from_id
+GROUP BY  users.id;
 
-DROP TRIGGER IF EXISTS `users_likes`.`trig_if_mutual`;
-
-delimiter //
-
-CREATE TRIGGER trig_if_mutual
-    BEFORE INSERT ON likes
-    FOR EACH ROW
-    BEGIN
-      SET NEW.mutual=(
-      CASE
-      WHEN (SELECT EXISTS (SELECT to_id FROM likes WHERE to_id=NEW.from_id and from_id=NEW.to_id))
-      THEN '1'
-      ELSE '0'
-      END);
-
-    END//
-
-delimiter ;
 
 -----------------2---------------------
 
@@ -117,7 +114,7 @@ select from_id as usersID from ABC where Cfrom_id is null;
 -------------------3-----------------------
 
 ALTER TABLE `users_likes`.`likes`
-ADD COLUMN `type` ENUM('user', 'foto', 'comment') NOT NULL AFTER `mutual`,
+ADD COLUMN `type` ENUM('user', 'foto', 'comment') NOT NULL AFTER `to_id`,
 ADD INDEX `ind_type` (`type` ASC);
 
 ALTER TABLE `users_likes`.`likes`
