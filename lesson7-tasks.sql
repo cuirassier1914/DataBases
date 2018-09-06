@@ -19,9 +19,9 @@ ENGINE = InnoDB;
 -- Table `users_likes`.`likes`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `users_likes`.`likes` (
-  `id` INT NOT NULL AUTO_INCREMENT,
-  `from_id` INT NOT NULL,
-  `to_id` INT NOT NULL,
+  `id` INT NULL AUTO_INCREMENT,
+  `from_id` INT NULL,
+  `to_id` INT NULL,
   PRIMARY KEY (`id`),
   INDEX `ind_from_id` (`from_id` ASC),
   INDEX `ind_to_id` (`to_id` ASC),
@@ -129,10 +129,7 @@ ALTER TABLE `users_likes`.`foto`
 CHANGE COLUMN `name` `text` VARCHAR(256) NULL DEFAULT NULL , RENAME TO  `users_likes`.`comments` ;
 
 
-
-
----- ---------------исключение повторных лайков - удаление лайка-----------------
---- не сработало в MariaDB, потому что есть еще один одновременный триггер---
+---- ---------------исключение повторных лайков-----------------
 
 use users_likes;
 
@@ -156,141 +153,50 @@ CREATE TRIGGER trig_likes_validator
       object_id=NEW.object_id) THEN TRUE
       ELSE FALSE
       END);
-
-DELETE FROM likes
-
-    WHERE from_id=NEW.from_id
-      and
-      to_id=NEW.to_id
-      and
-      `type`=NEW.`type`
-      and
-      object_id=NEW.object_id
-      and
-      TRUE=(CASE
-      WHEN @a=TRUE
-      THEN TRUE
-      ELSE FALSE
-      END);
-
-    END//
-
-delimiter ;
-	       
-	      
------- видимо, нужно сделать один триггер --------
----- но этот протестировать уже не успел, пишу "абстрактно"------
-	       
-use users_likes;
-	       
-DROP TRIGGER IF EXISTS `trig_if_mutual`;
-DROP TRIGGER IF EXISTS `trig_validator`;
-DROP TRIGGER IF EXISTS `trig_add_like`;
-
-	       
-delimiter //
-
-CREATE TRIGGER trig_add_like
-    BEFORE INSERT ON likes
-    FOR EACH ROW
-    BEGIN
-	       
-	SET @a=(CASE
-	WHEN EXISTS(SELECT * FROM likes WHERE
-      from_id=NEW.from_id
-      and
-      to_id=NEW.to_id
-      and
-      `type`=NEW.`type`
-      and
-      object_id=NEW.object_id) THEN TRUE
-      ELSE FALSE
-      END);
-
-	DELETE FROM likes
-    	WHERE from_id=NEW.from_id
-      and
-      to_id=NEW.to_id
-      and
-      `type`=NEW.`type`
-      and
-      object_id=NEW.object_id
-      and
-      TRUE=(CASE
-      WHEN @a=TRUE
-      THEN TRUE
-      ELSE FALSE
-      END);
-	       
-      SET NEW.mutual=(
+      
+	SET NEW.from_id=(
       CASE
-      WHEN (SELECT EXISTS (SELECT to_id FROM likes WHERE to_id=NEW.from_id and from_id=NEW.to_id))
-      THEN '1'
-      ELSE '0'
+      WHEN @a=TRUE
+      THEN NULL
+      ELSE NEW.from_id
+      END),
+      NEW.to_id=(
+      CASE
+      WHEN @a=TRUE
+      THEN NULL
+      ELSE NEW.to_id
+      END),
+      NEW.`type`=(
+      CASE
+      WHEN @a=TRUE
+      THEN NULL
+      ELSE NEW.`type`
+      END),
+      NEW.object_id=(
+      CASE
+      WHEN @a=TRUE
+      THEN NULL
+      ELSE NEW.object_id
       END);
 
     END//
-
 delimiter ;
 
 	    -------считать число полученных сущностью лайков и выводить список пользователей, поставивших лайки-----
-	    -----это тоже протестировать не успел---
 use users_likes;
-SELECT COUNT(id) FROM likes WHERE object_id= X;
-	    
-DROP VIEW IF EXISTS `objects_users` AS
-SELECT likes.id, likes.from_id, likes.object_id, users.name FROM likes
+
+SELECT COUNT(id) FROM likes WHERE object_id=1 and `type`='foto';
+
+DROP VIEW IF EXISTS `object_users`;
+
+CREATE VIEW `object_users` AS
+SELECT likes.id, likes.from_id, likes.object_id, users.`name` FROM likes
 LEFT JOIN users ON likes.from_id=users.id
 GROUP BY likes.id;
-	
----этот метод, честно говоря, подсмотрел---
-	    
-Declare @val Varchar(MAX);
-Set @val = COALESCE(@val + ', ' + users.name, users.name) From `objects_users`;
-Select @val;
-	    
-	    
-	   -----------------------test
-	    use users_likes;
 
-DROP TRIGGER IF EXISTS trig_likes_validator;
+SELECT * FROM `objects_users`;
 
-delimiter //
-
-CREATE TRIGGER trig_likes_validator
-    BEFORE INSERT ON likes
-    FOR EACH ROW
-    BEGIN
-
-    SET @a=(CASE
-		WHEN EXISTS(SELECT * FROM likes WHERE
-      from_id=NEW.from_id
-      and
-      to_id=NEW.to_id
-      and
-      `type`=NEW.`type`
-      and
-      object_id=NEW.object_id) THEN TRUE
-      ELSE FALSE
-      END);
-
-	UPDATE likes
-    SET
-    id=null, from_id=null, to_id=null, type=null, object_id=null
-    WHERE from_id=NEW.from_id
-      and
-      to_id=NEW.to_id
-      and
-      `type`=NEW.`type`
-      and
-      object_id=NEW.object_id
-      and
-      TRUE=(CASE
-      WHEN @a=TRUE
-      THEN TRUE
-      ELSE FALSE
-      END);
-
-    END//
-
-delimiter ;
+SELECT object_id, 
+COUNT(id) as `likes quantity`, 
+GROUP_CONCAT(DISTINCT `name` SEPARATOR ', ') as `by users` 
+FROM object_users GROUP BY object_id;
