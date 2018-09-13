@@ -1,0 +1,50 @@
+
+
+use users_likes;
+
+SELECT 
+u1.*, 
+count(distinct l2.id) as `received`,
+count(distinct l1.id) as `sent`, 
+sum(l1.from_id=l2.to_id) as `mututal`
+
+FROM users as u1
+
+LEFT JOIN likes as l1
+ON u1.id=l1.to_id
+
+LEFT JOIN users as u2
+ON u2.id=l1.from_id
+
+LEFT JOIN likes as l2
+ON u1.id=l2.from_id
+
+GROUP BY u1.id, u1.name;
+
+
+
+use users_likes;
+
+select users.*
+
+from users
+
+join likes
+on likes.from_id = users.id
+
+where likes.to_id=1
+
+and exists (
+	select * 
+    from likes
+    where likes.from_id = users.id
+    and likes.to_id=4)
+
+and not exists (
+	select *
+    from likes
+    where likes.from_id = users.id
+    and likes.to_id = 5
+)
+
+group by users.id, users.name;
