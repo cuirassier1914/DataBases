@@ -1,3 +1,77 @@
+CREATE TABLE `users_likes`.`users` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(45) NOT NULL,
+  PRIMARY KEY (`id`),
+  INDEX `idx_name` (`name` ASC));
+
+CREATE TABLE `users_likes`.`foto` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(256) NULL,
+  PRIMARY KEY (`id`));
+
+CREATE TABLE `users_likes`.`comments` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `text` TEXT NOT NULL,
+  PRIMARY KEY (`id`));
+
+CREATE TABLE `users_likes`.`likes` (
+  `id` INT NULL AUTO_INCREMENT,
+  `from_id` INT NULL,
+  `to_id` INT NULL,
+  `type` ENUM('foto', 'user', 'comment') NULL,
+  `object_id` INT NULL,
+  PRIMARY KEY (`id`),
+  INDEX `idx_from` (`from_id` ASC),
+  INDEX `idx_to` (`to_id` ASC),
+  INDEX `idx_object` (`object_id` ASC),
+  CONSTRAINT `fk_from`
+    FOREIGN KEY (`from_id`)
+    REFERENCES `users_likes`.`users` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_to`
+    FOREIGN KEY (`to_id`)
+    REFERENCES `users_likes`.`users` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION);
+
+INSERT INTO `users_likes`.`users` (`name`) VALUES ('Serge');
+INSERT INTO `users_likes`.`users` (`name`) VALUES ('Alexandra');
+INSERT INTO `users_likes`.`users` (`name`) VALUES ('Nathalie');
+INSERT INTO `users_likes`.`users` (`name`) VALUES ('Ingrid');
+INSERT INTO `users_likes`.`users` (`name`) VALUES ('Nicola');
+INSERT INTO `users_likes`.`users` (`name`) VALUES ('Fredy');
+
+INSERT INTO `users_likes`.`foto` (`name`) VALUES ('cat');
+INSERT INTO `users_likes`.`foto` (`name`) VALUES ('dog');
+INSERT INTO `users_likes`.`foto` (`name`) VALUES ('bird');
+INSERT INTO `users_likes`.`foto` (`name`) VALUES ('fox');
+INSERT INTO `users_likes`.`foto` (`name`) VALUES ('wolf');
+INSERT INTO `users_likes`.`foto` (`name`) VALUES ('elephant');
+
+INSERT INTO `users_likes`.`comments` (`text`) VALUES ('Chouette !');
+INSERT INTO `users_likes`.`comments` (`text`) VALUES ('Super !');
+INSERT INTO `users_likes`.`comments` (`text`) VALUES ('Merveilleux !');
+INSERT INTO `users_likes`.`comments` (`text`) VALUES ('Parfait !');
+INSERT INTO `users_likes`.`comments` (`text`) VALUES ('Incomparable !');
+
+INSERT INTO `users_likes`.`likes` (`from_id`, `to_id`, `type`, `object_id`) VALUES ('1', '2', 'user', '2');
+INSERT INTO `users_likes`.`likes` (`from_id`, `to_id`, `type`, `object_id`) VALUES ('2', '1', 'user', '1');
+INSERT INTO `users_likes`.`likes` (`from_id`, `to_id`, `type`, `object_id`) VALUES ('3', '1', 'foto', '4');
+INSERT INTO `users_likes`.`likes` (`from_id`, `to_id`, `type`, `object_id`) VALUES ('4', '5', 'comment', '1');
+INSERT INTO `users_likes`.`likes` (`from_id`, `to_id`, `type`, `object_id`) VALUES ('5', '1', 'user', '1');
+INSERT INTO `users_likes`.`likes` (`from_id`, `to_id`, `type`, `object_id`) VALUES ('1', '5', 'foto', '2');
+INSERT INTO `users_likes`.`likes` (`from_id`, `to_id`, `type`, `object_id`) VALUES ('1', '5', 'user', '5');
+
+
+-- Задача 1. У вас есть социальная сеть, где пользователи (id, имя) могут ставить друг другу лайки.
+-- Создайте запрос, который
+-- выведет информацию:
+-- 	id пользователя;
+-- 	имя;
+-- 	лайков получено;
+-- 	лайков поставлено;
+-- 	взаимные лайки.
 
 
 use users_likes;
@@ -21,6 +95,11 @@ ON u1.id=l2.from_id
 
 GROUP BY u1.id, u1.name;
 
+
+-- Задача 2. Для структуры из задачи 1 
+-- выведите список всех пользователей, 
+-- которые поставили лайк пользователям A и B (id задайте произвольно), 
+-- но при этом не поставили лайк пользователю C.
 
 
 use users_likes;
@@ -48,3 +127,89 @@ and not exists (
 )
 
 group by users.id, users.name;
+
+
+-- Задача 3. 
+-- невозможность поставить повторный лайк 
+-- удаление лайка
+
+use users_likes;
+
+drop procedure if exists fn_validator;
+
+delimiter //
+create procedure fn_validator (`from` INT, `to` INT, `new_type` ENUM('foto', 'user', 'comment'), `object` INT)
+	begin
+		set @a=(case
+			when exists(select * from likes 
+            where
+			from_id=`from`
+			and
+			to_id=`to`
+			and
+			`type`=`new_type`
+			and
+			object_id=`object`) then true
+			else false
+			end);
+		delete from likes
+        where 
+        from_id=`from`
+		and
+		to_id=`to`
+		and
+		`type`=`new_type`
+		and
+		object_id=`object`
+        and
+        @a=true;
+        insert into likes (from_id, to_id, `type`, object_id) 
+        values (case 
+				when@a=false
+                then `from`
+                else null
+			   end,
+				case 
+				when@a=false
+                then `to`
+                else null
+			   end,
+               case 
+				when@a=false
+                then `new_type`
+                else null
+			   end,
+               case 
+				when@a=false
+                then `object`
+                else null
+			   end
+				);
+	end//
+delimiter ;
+
+call fn_validator (1, 2, 'user', 2);
+
+
+--Задача 4.
+---считать число полученных сущностью лайков и выводить список пользователей, поставивших лайки
+
+
+use users_likes;
+
+SELECT COUNT(id) FROM likes WHERE object_id=1 and `type`='foto';
+
+
+DROP VIEW IF EXISTS `object_users`;
+
+CREATE VIEW `object_users` AS
+SELECT likes.id, likes.from_id, likes.object_id, users.`name` FROM likes
+LEFT JOIN users ON likes.from_id=users.id
+GROUP BY likes.id;
+
+SELECT * FROM `objects_users`;
+
+SELECT object_id,
+COUNT(id) as `likes quantity`,
+GROUP_CONCAT(DISTINCT `name` SEPARATOR ', ') as `by users`
+FROM object_users GROUP BY object_id;
