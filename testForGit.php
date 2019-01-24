@@ -8,3 +8,10 @@
 function newCode() {
     echo "Goshka !";
 };
+
+function newCode($a) {
+    $b = $a;
+    if ($b < 0) {
+        echo "!!!";
+    };
+};
