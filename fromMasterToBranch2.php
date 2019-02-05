@@ -5,3 +5,7 @@
  * Date: 05.02.2019
  * Time: 23:35
  */
+function NewFunction()
+{
+    
+}
