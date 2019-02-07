@@ -213,3 +213,6 @@ SELECT object_id,
 COUNT(id) as `likes quantity`,
 GROUP_CONCAT(DISTINCT `name` SEPARATOR ', ') as `by users`
 FROM object_users GROUP BY object_id;
+
+
+--Test for Git
